@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# 数据文件（本地存储，不上传）
+data/*.db
+data/*.json
+data/*.log
+data/pet_data.db
+
+# 配置（含敏感信息）
+config.yaml
+.env
+*.key
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 构建
+dist/
+build/
+*.egg-info/
+
+# macOS
+.DS_Store
+
+# 临时文件
+*.tmp
+*.bak
+
+# 用户自定义话术（可能含个人信息）
+templates/*_custom.json
