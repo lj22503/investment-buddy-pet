@@ -2,6 +2,7 @@
 """
 心跳引擎 - 主动提醒系统
 定期检查市场/用户状态，触发宠物主动提醒
+集成合规检查器（Compliance Checker）
 """
 
 import json
@@ -10,15 +11,21 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 import requests
+import sys
+
+# 导入合规检查器
+sys.path.insert(0, str(Path(__file__).parent))
+from compliance_checker import ComplianceChecker
 
 class HeartbeatEngine:
-    """心跳引擎"""
+    """心跳引擎（带合规检查）"""
     
-    def __init__(self, user_id, db_path=None):
+    def __init__(self, user_id, pet_type=None, db_path=None):
         self.user_id = user_id
         self.db_path = db_path or Path(__file__).parent.parent / "data" / "pet_data.db"
         self.config = self.load_config()
-        self.pet = self.load_pet()
+        self.pet = self.load_pet(pet_type)
+        self.compliance = ComplianceChecker()  # 初始化合规检查器
         self.init_db()
     
     def load_config(self):
@@ -148,7 +155,7 @@ class HeartbeatEngine:
             return quiet_start <= current_hour < quiet_end
     
     def generate_trigger(self, market_data, user_status):
-        """生成触发"""
+        """生成触发（带合规检查）"""
         triggers = []
         
         if not self.pet:
@@ -159,39 +166,152 @@ class HeartbeatEngine:
             change = market_data["change_percent"]
             
             if change < -5 and self.pet["personality_traits"]["intervention_level"] > 50:
+                message = self.generate_compliant_message(
+                    "market_drop",
+                    {"percent": change},
+                    needs_disclaimer=True
+                )
                 triggers.append({
                     "type": "market_drop",
                     "priority": "high",
-                    "message": f"主人，今天跌了{change}%... 我知道你有点担心。但历史上每次都涨回来了！",
-                    "pet_id": self.pet["pet_id"]
+                    "message": message,
+                    "pet_id": self.pet["pet_id"],
+                    "compliance_checked": True
                 })
             elif change > 5 and self.pet["personality_traits"]["proactivity_level"] > 60:
+                message = self.generate_compliant_message(
+                    "market_rise",
+                    {"percent": change},
+                    needs_disclaimer=True
+                )
                 triggers.append({
                     "type": "market_rise",
                     "priority": "medium",
-                    "message": f"今天涨了{change}%！我们的坚持见效啦！🎉",
-                    "pet_id": self.pet["pet_id"]
+                    "message": message,
+                    "pet_id": self.pet["pet_id"],
+                    "compliance_checked": True
                 })
         
         # 2. 定投日触发
         if user_status["is_sip_day"] and self.pet["personality_traits"]["proactivity_level"] > 60:
+            message = self.generate_compliant_message(
+                "sip_reminder",
+                None,
+                needs_disclaimer=False
+            )
             triggers.append({
                 "type": "sip_reminder",
                 "priority": "medium",
-                "message": "定投日到了！记得打卡哦~ 我已经准备好存坚果啦！🌰",
-                "pet_id": self.pet["pet_id"]
+                "message": message,
+                "pet_id": self.pet["pet_id"],
+                "compliance_checked": True
             })
         
         # 3. 长时间未互动触发
         if user_status["last_interaction_days"] and user_status["last_interaction_days"] > 7:
+            message = self.generate_compliant_message(
+                "inactive_reminder",
+                None,
+                needs_disclaimer=False
+            )
             triggers.append({
                 "type": "inactive_reminder",
                 "priority": "low",
-                "message": "主人，好久不见！我有点想你了... 来看看最近的市场吧？",
-                "pet_id": self.pet["pet_id"]
+                "message": message,
+                "pet_id": self.pet["pet_id"],
+                "compliance_checked": True
             })
         
         return triggers
+    
+    def generate_compliant_message(self, trigger_type, data=None, needs_disclaimer=False):
+        """生成合规消息"""
+        # 1. 从宠物配置获取话术模板
+        templates = self.pet.get("talk_templates", {})
+        template = templates.get(trigger_type, "...")
+        
+        # 2. 填充数据
+        if data:
+            try:
+                message = template.format(**data)
+            except KeyError:
+                message = template
+        else:
+            message = template
+        
+        # 3. 应用人格化风格
+        message = self.apply_personality_style(message)
+        
+        # 4. 合规检查
+        context = {"needs_disclaimer": needs_disclaimer}
+        check_result = self.compliance.check_message(message, context)
+        
+        # 5. 如果不合规，修复
+        if not check_result["is_compliant"]:
+            message = self.fix_compliance_violation(message, check_result["violations"])
+        
+        # 6. 添加风险提示（如果需要）
+        if needs_disclaimer:
+            message = self.add_personality_disclaimer(message)
+        
+        return message
+    
+    def apply_personality_style(self, message):
+        """应用人格化风格"""
+        style = self.pet.get("communication_style", "friendly")
+        
+        style_handlers = {
+            "warm": lambda m: m + "哦~" if not m.endswith(("哦", "~", "呢")) else m,
+            "calm": lambda m: m.replace("!", "。").replace("~", "。"),
+            "rational": lambda m: m + " 数据仅供参考。",
+            "decisive": lambda m: m + "！" if not m.endswith("！") else m,
+            "witty": lambda m: m + " 机智如我~",
+            "friendly": lambda m: m + "呀~",
+            "visionary": lambda m: m + " 未来已来！",
+            "energetic": lambda m: m + " 加油！"
+        }
+        
+        handler = style_handlers.get(style, lambda m: m)
+        return handler(message)
+    
+    def add_personality_disclaimer(self, message):
+        """添加人格化风险提示"""
+        style = self.pet.get("communication_style", "friendly")
+        
+        disclaimer_templates = {
+            "warm": "💡 投资有风险，要谨慎决策哦~",
+            "calm": "市场有风险。请独立判断。",
+            "rational": "风险提示：历史数据不代表未来表现。",
+            "decisive": "风险自负！不要盲目跟风！",
+            "witty": "投资有风险，别全听我的~ 机智如我",
+            "friendly": "记得哦，投资有风险，要自己判断呀~",
+            "visionary": "未来不确定，投资需谨慎。",
+            "energetic": "冲之前先想好风险！"
+        }
+        
+        disclaimer = disclaimer_templates.get(style, "市场有风险，投资需谨慎")
+        return f"{message}\n\n{disclaimer}"
+    
+    def fix_compliance_violation(self, message, violations):
+        """修复合规违规"""
+        for v in violations:
+            if v["type"] == "specific_recommendation":
+                message = message.replace(
+                    "买这个基金",
+                    "我可以教你筛选方法，但不会推荐具体产品"
+                )
+            elif v["type"] == "return_promise":
+                message = message.replace(
+                    "肯定赚钱",
+                    "历史业绩不代表未来表现"
+                )
+            elif v["type"] == "fear_tactics":
+                message = message.replace(
+                    "赶紧买",
+                    "理性决策"
+                )
+        
+        return message
     
     def send_notification(self, trigger):
         """发送通知"""
