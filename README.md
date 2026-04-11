@@ -9,16 +9,20 @@
 ```
 investment-buddy-pet/           # 1 个通用 Skill
 ├── SKILL.md                    # 通用技能文档
-├── pets/                       # 12 个宠物配置文件
+├── clawhub.json                # ClawHub 发布配置
+├── pets/                       # 13 个宠物配置文件
 │   ├── songguo.json           # 🐿️ 松果
 │   ├── wugui.json             # 🐢 慢慢
 │   ├── maotouying.json        # 🦉 智多星
-│   └── ... (12 个)
+│   └── ... (13 个)
 ├── scripts/                    # 通用脚本
+│   ├── personality_test.py    # 20 题投资性格测试
 │   ├── pet_match.py           # 宠物匹配测试
 │   ├── heartbeat_engine.py    # 心跳引擎（支持 pet_type）
-│   ├── sync_manager.py        # 同步管理
+│   ├── compliance_checker.py  # 金融合规检查器
 │   └── viral_growth.py        # 病毒传播
+├── docs/                       # 文档
+│   └── knowledge/             # 知识库（5 个核心文档）
 ├── templates/                  # 模板
 ├── data/                       # 用户数据
 └── assets/                     # 素材
@@ -26,230 +30,158 @@ investment-buddy-pet/           # 1 个通用 Skill
 
 ---
 
-## 🐾 12 只宠物
+## 🐾 13 只宠物
 
 | 宠物 | emoji | 投资风格 | 沟通风格 | 主动性 | 适合人群 |
 |------|-------|---------|---------|--------|---------|
-| 🐿️ 松果 | 谨慎定投 | 温暖 | 40 | 保守型新手 |
-| 🐢 慢慢 | 长期主义 | 平静 | 30 | 超长期投资者 |
-| 🦉 智多星 | 理性分析 | 理性 | 70 | 理性分析派 |
-| 🐺 孤狼 | 激进成长 | 果断 | 85 | 追求高收益 |
-| 🐘 稳稳 | 稳健配置 | 平静 | 40 | 平衡型投资者 |
-| 🦅 鹰眼 | 趋势交易 | 果断 | 70 | 趋势交易者 |
-| 🦊 狐狐 | 灵活配置 | 机智 | 60 | 资产配置者 |
-| 🐬 豚豚 | 指数投资 | 友好 | 50 | 被动投资者 |
-| 🦁 狮王 | 集中投资 | 勇敢 | 85 | 集中持仓者 |
-| 🐜 蚁蚁 | 分散投资 | 谨慎 | 45 | 风险厌恶者 |
-| 🐪 驼驼 | 逆向投资 | 理性 | 55 | 逆向投资者 |
-| 🦄 角角 | 成长投资 | 远见 | 80 | 科技成长派 |
-| 🐎 马马 | 行业轮动 | 活力 | 70 | 行业轮动者 |
+| 🐿️ 松果 | songguo | 谨慎定投 | 温暖 | 40 | 保守型新手 |
+| 🐢 慢慢 | wugui | 长期主义 | 平静 | 30 | 超长期投资者 |
+| 🦉 智多星 | maotouying | 理性分析 | 理性 | 70 | 理性分析派 |
+| 🐺 孤狼 | lang | 激进成长 | 果断 | 85 | 追求高收益 |
+| 🐘 稳稳 | daxiang | 稳健配置 | 平静 | 40 | 平衡型投资者 |
+| 🦅 鹰眼 | ying | 趋势交易 | 果断 | 70 | 趋势交易者 |
+| 🦊 狐狐 | huli | 灵活配置 | 机智 | 60 | 资产配置者 |
+| 🐬 豚豚 | haitun | 指数投资 | 友好 | 50 | 被动投资者 |
+| 🦁 狮王 | shizi | 集中投资 | 勇敢 | 85 | 集中持仓者 |
+| 🐜 蚁蚁 | mayi | 分散投资 | 谨慎 | 45 | 风险厌恶者 |
+| 🐪 驼驼 | luotuo | 逆向投资 | 理性 | 55 | 逆向投资者 |
+| 🦄 角角 | dunjiaoshou | 成长投资 | 远见 | 80 | 科技成长派 |
+| 🐎 马马 | junma | 行业轮动 | 活力 | 70 | 行业轮动者 |
 
 ---
 
 ## 🚀 快速开始
 
-### 方式 1：ClawHub 安装
+### 方式 1：ClawHub 安装（推荐）
 
 ```bash
-/clawhub install investment-buddy-pet
+clawhub install investment-buddy-pet
 ```
 
-### 方式 2：Git 安装
+### 方式 2：手动安装
 
 ```bash
-git clone https://github.com/lj22503/investment-buddy-pet.git
+# 克隆仓库
+git clone git@github.com:lj22503/investment-buddy-pet.git
+
+# 复制技能到 OpenClaw
+cp -r investment-buddy-pet ~/.openclaw/skills/
+
+# 运行测试
 cd investment-buddy-pet
-pip install -r requirements.txt
+python3 scripts/pet_match.py
 ```
 
-### 启动宠物
+---
+
+## 📋 核心功能
+
+### 1. 投资性格测试
+
+20 道题目，评估五维投资性格：
+- 风险承受力
+- 知识水平
+- 决策风格
+- 情绪稳定性
+- 时间偏好
+
+**运行测试**：
+```bash
+python3 scripts/personality_test.py
+```
+
+### 2. 宠物匹配
+
+基于五维评分，计算与 13 只宠物的兼容度，推荐 Top 3。
+
+### 3. 宠物激活
+
+激活选中的宠物，配置心跳任务。
+
+### 4. 心跳陪伴
+
+宠物主动触发对话，提供：
+- 情感陪伴
+- 定投提醒
+- 市场波动安抚
+- 投资者教育
+
+---
+
+## 📚 知识库文档
+
+| 文档 | 说明 |
+|------|------|
+| PET_KNOWLEDGE_BASE.md | 12 只宠物完整人格设定 |
+| INVESTMENT_PERSONALITY_ONTOLOGY.md | 五维投资性格分类体系 |
+| CONVERSATION_TEMPLATES.md | 3 类触发器×13 宠物对话模板 |
+| TASK_GENERATION_RULES.md | 8 大触发规则 +5 类任务生成 |
+| PET_RELATION_GRAPH.md | ECharts+Neo4j 关系图谱 |
+
+---
+
+## 🔧 使用示例
+
+### 运行性格测试
 
 ```bash
-# 测试匹配
-python scripts/pet_match.py
-# 输出：你的本命宠物是🐿️ 松果
+cd /path/to/investment-buddy-pet
+python3 scripts/personality_test.py
+```
 
-# 启动松果
-python scripts/heartbeat_engine.py start \
-  --user-id user_123 \
-  --pet-type songguo
+### 激活宠物
 
-# 启动慢慢
-python scripts/heartbeat_engine.py start \
-  --user-id user_123 \
-  --pet-type wugui
+```bash
+python3 scripts/heartbeat_engine.py start --user-id <your_user_id> --pet-type songguo
 ```
 
 ---
 
-## 🎮 用户流程
+## 📦 发布到 ClawHub
 
-```
-H5 测试页（mangofolio.vercel.app）
-    ↓
-10 道测试题
-    ↓
-匹配结果：🐿️ 松果（92%）
-    ↓
-引导下载：investment-buddy-pet
-    ↓
-安装技能
-    ↓
-启动：--pet-type songguo
-    ↓
-松果开始陪伴
+```bash
+# 确保 clawhub.json 配置正确
+cd /path/to/investment-buddy-pet
+
+# 发布
+clawhub publish . --version "1.0.0"
 ```
 
 ---
 
-## 🔧 宠物独特性保证
+## 📊 项目状态
 
-### 1. 人格参数差异
-
-```json
-// 松果 (songguo.json)
-{
-  "proactivity_level": 40,    // 低主动性
-  "communication_style": "warm",  // 温暖风格
-  "verbosity_level": 50,      // 适中详细度
-  "intervention_level": 70    // 难触发干预
-}
-
-// 慢慢 (wugui.json)
-{
-  "proactivity_level": 30,    // 很低主动性
-  "communication_style": "calm",  // 平静风格
-  "verbosity_level": 30,      // 简短
-  "intervention_level": 60
-}
-
-// 智多星 (maotouying.json)
-{
-  "proactivity_level": 70,    // 高主动性
-  "communication_style": "rational",  // 理性风格
-  "verbosity_level": 70,      // 详细
-  "intervention_level": 50
-}
-```
-
-### 2. 话术模板差异
-
-```json
-// 松果的话术
-{
-  "greeting_morning": "早上好！今天也是存坚果的一天！☀️",
-  "market_down": "跌了{percent}%... 我知道你有点担心。但历史上每次都涨回来了！"
-}
-
-// 慢慢的话术
-{
-  "greeting_morning": "早安。今天也要慢慢变富。🐢",
-  "market_down": "跌了{percent}%。正常波动，继续持有就好。"
-}
-
-// 智多星的话术
-{
-  "greeting_morning": "早安。今日市场数据已更新，请查看。📊",
-  "market_down": "今日跌幅{percent}%。历史数据：{history_data}"
-}
-```
-
-### 3. 话术生成器（应用人格）
-
-```python
-class PetMessageGenerator:
-    def __init__(self, pet_config):
-        self.pet = pet_config
-    
-    def generate(self, trigger_type, data=None):
-        # 获取基础模板
-        template = self.pet['talk_templates'][trigger_type]
-        
-        # 填充数据
-        message = template.format(**data) if data else template
-        
-        # 应用沟通风格
-        style = self.pet['communication_style']
-        if style == 'warm':
-            message = self.add_warm_tone(message)
-        elif style == 'calm':
-            message = self.shorten(message)
-        elif style == 'rational':
-            message = self.add_data_support(message)
-        elif style == 'decisive':
-            message = self.make_direct(message)
-        
-        # 应用详细度
-        verbosity = self.pet['verbosity_level']
-        if verbosity < 40:
-            message = self.shorten(message)
-        elif verbosity > 70:
-            message = self.expand(message)
-        
-        return message
-```
+- ✅ 本地开发完成
+- ⏳ 等待 GitHub 仓库创建
+- ⏳ 等待 ClawHub 发布
 
 ---
 
-## 📊 完成状态
+## 🎯 相关项目
 
-| 模块 | 状态 | 说明 |
+| 项目 | 用途 | 状态 |
 |------|------|------|
-| SKILL.md | ✅ 完成 | 通用技能文档 |
-| 12 个宠物 JSON | ✅ 完成 | 人格配置文件 |
-| pet_match.py | ✅ 完成 | 测试匹配脚本 |
-| heartbeat_engine.py | ✅ 完成 | 心跳引擎（支持 pet_type） |
-| sync_manager.py | ✅ 完成 | 同步管理 |
-| viral_growth.py | ✅ 完成 | 病毒传播 |
-| H5 对接 | ⏳ 待开始 | 结果页引导下载 |
-| ClawHub 发布 | ⏳ 待开始 | 上架技能 |
+| **investment-buddy-pet** | 主技能 | ✅ 完成 |
+| **mangofolio-h5** | 投资人格测试 H5 | ✅ 完成 |
 
----
-
-## 📁 文件结构
-
+**用户流程**：
 ```
-investment-buddy-pet/
-├── SKILL.md                    ✅ 通用技能文档
-├── README.md                   ✅ 使用说明
-├── pets/                       ✅ 12 个宠物配置
-│   ├── songguo.json
-│   ├── wugui.json
-│   ├── maotouying.json
-│   ├── lang.json
-│   ├── daxiang.json
-│   ├── ying.json
-│   ├── huli.json
-│   ├── haitun.json
-│   ├── shizi.json
-│   ├── mayi.json
-│   ├── luotuo.json
-│   ├── dunjiaoshou.json
-│   └── junma.json
-├── scripts/                    ✅ 4 个核心脚本
-│   ├── pet_match.py
-│   ├── heartbeat_engine.py
-│   ├── sync_manager.py
-│   └── viral_growth.py
-├── templates/                  📁 目录
-├── data/                       📁 目录
-└── assets/                     📁 目录
+mangofolio-h5 (测试页面)
+    ↓ 测试完成 → 推荐宠物
+    ↓ 下载技能
+investment-buddy-pet (主技能)
+    ↓ 激活宠物 → 心跳陪伴
+用户投资成长
 ```
 
 ---
 
-## 🔗 相关项目
+## 📄 License
 
-| 项目 | 说明 |
-|------|------|
-| `mangofolio-h5` | H5 测试页（引流入口） |
-| `investment-buddy` | 原始宠物系统设计 |
-| `investment-framework-skill` | 投资框架技能（大师技能） |
-| `ttfund-skills` | 天天基金数据 |
-| `qieman-mcp` | 且慢投顾策略 |
+MIT License
 
 ---
 
 **创建时间**：2026-04-10  
 **版本**：v1.0.0  
-**架构**：1 个通用 Skill + 12 个宠物配置
+**作者**：燃冰 + ant
