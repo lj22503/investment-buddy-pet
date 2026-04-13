@@ -25,12 +25,9 @@
   "files": [
     "SKILL.md",
     "README.md",
-    "evolution-log.md",
     "pets/*.json",
     "scripts/*.py",
-    "docs/*.md",
-    "references/*.md",
-    "templates/*.md"
+    "docs/knowledge/*.md"
   ],
   "scripts": {
     "test": "python3 scripts/compliance_checker.py",
