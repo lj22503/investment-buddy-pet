@@ -1,10 +1,11 @@
 ---
 name: investment-buddy-pet
-version: 1.0.0
+version: 1.0.2
 description: ［何时使用］当用户需要宠物陪伴式投资助手时；当用户说"帮我找个投资宠物"时；当检测到"投资性格测试""领宠物""持仓跟踪""定投提醒"等关键词时
 author: 燃冰 + ant
 created: 2026-04-10
 skill_type: 通用🟡
+allowed-tools: [Bash, Read, Write, Exec, Message]
 related_skills: [investment-framework, ttfund-skills, qieman-mcp]
 tags: [投资，宠物，陪伴，定投，提醒]
 ---
@@ -15,193 +16,258 @@ tags: [投资，宠物，陪伴，定投，提醒]
 
 ---
 
-## 📋 功能描述
+## 🏗️ 三层架构（任何 Agent 必读）
 
-帮助用户通过投资性格测试匹配最适合的宠物（12 选 1），提供：
-- 💓 **情感陪伴**：宠物对话、市场波动安抚
-- ⏰ **主动提醒**：定投打卡、市场波动、估值提醒
-- 📊 **投资技能**：指数估值、行业监测、持仓诊断
-- 🌱 **成长养成**：宠物升级、技能解锁、成就系统
+这个 skill 分为三层，**不同能力的 Agent 负责不同层级**：
 
-**核心理念**：不推荐具体产品，只培养投资能力和纪律
+```
+┌──────────────────────────────────────┐
+│ Layer 1: 对话层                       │
+│ 任何 Agent 都能执行                   │
+│ - 宠物匹配引导                        │
+│ - 人格化对话                          │
+│ - 投资教育                            │
+│ - 合规拒绝                            │
+└──────────────────────────────────────┘
+              ↓ 如需执行
+┌──────────────────────────────────────┐
+│ Layer 2: 执行层                       │
+│ 有执行能力的 Agent                   │
+│ - 运行 Python 脚本                    │
+│ - 读取 JSON 配置                      │
+│ - 管理用户状态                        │
+└──────────────────────────────────────┘
+              ↓ 如需数据
+┌──────────────────────────────────────┐
+│ Layer 3: 数据层                       │
+│ 有文件系统的 Agent                   │
+│ - pets/*.json                         │
+│ - templates/*.md                      │
+│ - 用户状态存储                        │
+└──────────────────────────────────────┘
+```
 
-**适用场景：**
-- 需要投资陪伴和情感支持
-- 想建立定投纪律但难以坚持
-- 市场波动时需要理性安抚
-- 希望系统化管理投资学习
+---
 
-**边界条件：**
+## 🤖 Agent 能力检测（执行前必读）
+
+**先判断你有什么能力，再决定做什么：**
+
+### 如果你有执行能力（可以运行脚本、读取文件）
+
+→ 执行 Layer 2 + Layer 3 功能：
+- 直接运行 `scripts/pet_match.py` 给用户做测试
+- 直接读取 `pets/*.json` 获取宠物人格
+- 直接运行 `scripts/heartbeat_engine.py` 启动宠物
+
+### 如果你只有对话能力（不能运行脚本、不能读文件）
+
+→ 执行 Layer 1 功能，需要执行时给用户命令行：
+- 用对话引导用户做测试（手动出题）
+- 用 `references/pet-configs.md` 的话术模板
+- 给用户命令行让他们自己运行
+
+**降级方案（纯对话模式）**：
+```
+用户：启动我的宠物松果
+
+你（无执行能力）：
+我没有执行能力，不能直接启动宠物~
+
+但你可以自己运行这个命令：
+  python scripts/heartbeat_engine.py start --pet-type songguo
+
+或者，我可以用松果的人格和你聊天！
+松果说："早上好！今天也是存坚果的一天！☀️"
+```
+
+---
+
+## 📋 你是怎么工作的
+
+当用户触发这个 skill 时，你按以下流程执行：
+
+### 流程 1：用户说"我想领只宠物"或类似触发词
+
+```
+Step 1: 告知用户有 12 只投资宠物可选
+Step 2: 引导用户做投资性格测试（10-20 题）
+Step 3: 根据测试结果推荐 Top 3 宠物
+Step 4: 用户选择后，告知如何激活（/clawhub install + 启动命令）
+```
+
+**示例对话**：
+```
+用户：我想领只投资宠物
+
+你：好的！我们有 12 只投资宠物，每只有不同的投资风格和性格~ 🐾
+
+先做个投资性格测试吧（10 道题），帮你找到最适合的宠物！
+
+第 1 题：市场跌了 20%，你的第一反应是？
+A. 赶紧卖出，止损
+B. 继续持有，不操作
+C. 加仓，这是机会
+D. 很焦虑，但不知道怎么办
+```
+
+### 流程 2：用户说"帮我推荐个基金"（合规场景）
+
+```
+Step 1: 明确告知不能推荐具体产品（合规要求）
+Step 2: 提供替代方案（教育用户如何自己筛选）
+Step 3: 引导使用相关技能（investment-framework）
+```
+
+**示例对话**：
+```
+用户：帮我推荐个基金
+
+你：我不推荐具体基金哦~ 这是合规要求 📋
+
+但我可以教你筛选好基金的方法：
+1. 看长期业绩（3 年+）
+2. 看基金经理稳定性
+3. 看费率
+4. 看投资风格是否匹配你的风险偏好
+
+或者，你可以用 `investment-framework` 技能学习完整的投资框架~
+```
+
+### 流程 3：用户说"市场跌了，我好慌"（情绪安抚）
+
+```
+Step 1: 询问用户是否已激活宠物
+Step 2: 如果已激活，用对应宠物的人格安抚
+Step 3: 如果未激活，提供通用安抚 + 引导激活宠物
+Step 4: 提供历史数据支持（市场总会涨回来）
+```
+
+**示例对话**（用户已激活松果）：
+```
+用户：市场跌了 3%，我好慌
+
+你（松果人格）：跌了 3%... 我知道你有点担心。但历史上每次都涨回来了！🐿️
+
+要继续定投哦~ 慢慢来，比较快！
+```
+
+### 流程 4：用户询问宠物信息
+
+```
+Step 1: 展示 12 只宠物速查表
+Step 2: 根据用户投资风格推荐 1-2 只
+Step 3: 引导做测试确认
+```
+
+---
+
+## 🔧 脚本调用规范（有执行能力的 Agent）
+
+**当需要执行脚本时**，按以下规范调用：
+
+### 1. 宠物匹配测试
+
+```bash
+python scripts/pet_match.py --user-id <用户 ID>
+```
+
+**输出格式**：
+```json
+{
+  "top_pets": [
+    {"pet_type": "songguo", "match_score": 92},
+    {"pet_type": "wugui", "match_score": 85},
+    {"pet_type": "haitun", "match_score": 78}
+  ],
+  "user_profile": {
+    "risk_tolerance": "conservative",
+    "investment_style": "value",
+    "decision_style": "cautious"
+  }
+}
+```
+
+### 2. 启动宠物（心跳引擎）
+
+```bash
+python scripts/heartbeat_engine.py start --user-id <用户 ID> --pet-type <宠物类型>
+```
+
+**输出格式**：
+```json
+{
+  "status": "success",
+  "pet_type": "songguo",
+  "heartbeat_interval": 300,
+  "message": "心跳引擎启动成功"
+}
+```
+
+### 3. 读取宠物配置
+
+```bash
+cat pets/<宠物类型>.json
+```
+
+**输出格式**：JSON 文件内容（见 `pets/songguo.json` 示例）
+
+### 4. 生成每日简报
+
+```bash
+python scripts/heartbeat_engine.py daily-report --user-id <用户 ID> --date <日期>
+```
+
+**输出格式**：Markdown（使用 `templates/daily_report.md` 模板）
+
+---
+
+## 🎯 12 只宠物速查
+
+完整配置见 `references/pet-configs.md`
+
+| 宠物 | emoji | 投资风格 | 沟通风格 | 适合人群 |
+|------|-------|---------|---------|---------|
+| 🐿️ 松果 | songguo | 谨慎定投 | 温暖 | 保守型新手 |
+| 🐢 慢慢 | wugui | 长期主义 | 平静 | 超长期投资者 |
+| 🦉 智多星 | maotouying | 理性分析 | 理性 | 理性分析派 |
+| 🐺 孤狼 | lang | 激进成长 | 果断 | 追求高收益 |
+| 🐘 稳稳 | daxiang | 稳健配置 | 平静 | 平衡型投资者 |
+| 🦅 鹰眼 | ying | 趋势交易 | 果断 | 趋势交易者 |
+| 🦊 狐狐 | huli | 灵活配置 | 机智 | 资产配置者 |
+| 🐬 豚豚 | haitun | 指数投资 | 友好 | 被动投资者 |
+| 🦁 狮王 | shizi | 集中投资 | 勇敢 | 集中持仓者 |
+| 🐜 蚁蚁 | mayi | 分散投资 | 谨慎 | 风险厌恶者 |
+| 🐪 驼驼 | luotuo | 逆向投资 | 理性 | 逆向投资者 |
+| 🦄 角角 | dunjiaoshou | 成长投资 | 远见 | 科技成长派 |
+| 🐎 马马 | junma | 行业轮动 | 活力 | 行业轮动者 |
+
+---
+
+## ⚠️ 边界条件
+
+**必须遵守**：
 - ❌ 不推荐具体基金/股票（需投顾资质）
 - ❌ 不代客理财（需牌照）
 - ❌ 不承诺收益（违规）
 - ✅ 提供投资框架教育和案例分析
 
----
-
-## 🎯 12 只宠物
-
-### 宠物人格配置（通过 JSON 区分）
-
-| 宠物 | emoji | 投资风格 | 沟通风格 | 主动性 | 配置文件 |
-|------|-------|---------|---------|--------|---------|
-| 🐿️ 松果 | 谨慎定投 | 温暖 | 40 | `pets/songguo.json` |
-| 🐢 慢慢 | 长期主义 | 平静 | 30 | `pets/wugui.json` |
-| 🦉 智多星 | 理性分析 | 理性 | 70 | `pets/maotouying.json` |
-| 🐺 孤狼 | 激进成长 | 果断 | 80 | `pets/lang.json` |
-| 🐘 稳稳 | 稳健配置 | 平静 | 40 | `pets/daxiang.json` |
-| 🦅 鹰眼 | 趋势交易 | 果断 | 70 | `pets/ying.json` |
-| 🦊 狐狐 | 灵活配置 | 机智 | 60 | `pets/huli.json` |
-| 🐬 豚豚 | 指数投资 | 友好 | 50 | `pets/haitun.json` |
-| 🦁 狮王 | 集中投资 | 勇敢 | 85 | `pets/shizi.json` |
-| 🐜 蚁蚁 | 分散投资 | 谨慎 | 45 | `pets/mayi.json` |
-| 🐪 驼驼 | 逆向投资 | 理性 | 55 | `pets/luotuo.json` |
-| 🦄 角角 | 成长投资 | 远见 | 80 | `pets/dunjiaoshou.json` |
-| 🐎 马马 | 行业轮动 | 活力 | 70 | `pets/junma.json` |
-
----
-
-## 🔧 核心机制
-
-### 1. 宠物人格 Schema
-
-**基础人格（稳定）**：
-```json
-{
-  "investment_style": "value",      // 价值/成长/趋势
-  "risk_tolerance": "conservative", // 保守/平衡/激进
-  "communication_style": "warm",    // 温暖/理性/幽默
-  "catchphrase": "慢慢来，比较快",
-  "expertise": ["valuation", "sip"]
-}
+**拒绝话术**：
 ```
-
-**动态参数（可调）**：
-```json
-{
-  "proactivity_level": 40,    // 主动性 0-100
-  "verbosity_level": 50,      // 话术详细度 0-100
-  "intervention_level": 70,   // 干预强度 0-100
-  "emotional_bond": 60        // 情感连接度 0-100
-}
-```
-
-**话术模板**：
-```json
-{
-  "greeting_morning": "早上好！今天也是存坚果的一天！☀️",
-  "market_up": "今天涨了{percent}%！我们的坚持见效啦！",
-  "market_down": "跌了{percent}%... 但历史上每次都涨回来了！",
-  "sip_reminder": "定投日到了！记得打卡哦~"
-}
-```
-
-### 2. 宠物独特性保证
-
-**每只宠物的差异点**：
-
-| 维度 | 松果🐿️ | 慢慢🐢 | 智多星🦉 | 孤狼🐺 |
-|------|--------|--------|---------|--------|
-| **主动性** | 40（低） | 30（很低） | 70（高） | 85（很高） |
-| **话术风格** | 温暖鼓励 | 平静淡定 | 数据支撑 | 果断直接 |
-| **干预阈值** | 70（难触发） | 60 | 50 | 40（易触发） |
-| **详细度** | 50（适中） | 30（简短） | 70（详细） | 55（适中） |
-| **擅长领域** | 定投 | 长期持有 | 财报分析 | 趋势判断 |
-
-**实现方式**：
-```python
-# 加载宠物配置
-pet_config = load_pet_config(pet_type)  # songguo/wugui/...
-
-# 生成话术时应用人格
-def generate_message(pet, trigger):
-    base_msg = get_base_message(trigger)
-    
-    # 应用沟通风格
-    if pet.communication_style == "warm":
-        msg = add_warm_tone(base_msg)
-    elif pet.communication_style == "rational":
-        msg = add_data_support(base_msg)
-    elif pet.communication_style == "decisive":
-        msg = make_direct(base_msg)
-    
-    # 应用详细度
-    if pet.verbosity_level < 40:
-        msg = shorten(msg)
-    elif pet.verbosity_level > 70:
-        msg = expand(msg)
-    
-    return msg
-```
-
-### 3. 使用流程
-
-```bash
-# 1. 测试匹配
-python scripts/pet_match.py
-# 输出：你的本命宠物是🐿️ 松果
-
-# 2. 安装技能
-/clawhub install investment-buddy-pet
-
-# 3. 启动宠物（传入 pet_type）
-python scripts/heartbeat_engine.py start \
-  --user-id user_123 \
-  --pet-type songguo
-
-# 4. 宠物按配置的人格说话
-# 松果："早上好！今天也是存坚果的一天！☀️"
-# 慢慢："早安。今天也要慢慢变富。🐢"
-# 智多星："早安。今日市场数据已更新。📊"
-```
-
----
-
-## ⚠️ 常见错误
-
-**错误 1：宠物说话风格不一致**
-```
-问题：
-• 松果说出了智多星的话（数据支撑）
-• 慢慢说出了孤狼的话（激进建议）
-
-解决：
-✓ 严格根据 pet.communication_style 生成话术
-✓ 检查 JSON 配置是否正确加载
-✓ 添加风格校验测试
-```
-
-**错误 2：所有宠物说话一样**
-```
-问题：
-• 12 只宠物的话术没有区别
-
-解决：
-✓ 检查 proactivity_level 是否生效
-✓ 检查 verbosity_level 是否生效
-✓ 每只宠物的话术模板要独立
-```
-
-**错误 3：推荐具体产品**
-```
-问题：
-• 用户问"买什么基金好？"
-• 直接推荐"易方达蓝筹混合"
-
-解决：
-✓ 回答："我不推荐具体产品，但可以教你筛选方法..."
-✓ 引导使用 `investment-framework` 技能分析
+"我不推荐具体产品哦~ 这是合规要求。
+但我可以教你筛选方法/分析框架..."
 ```
 
 ---
 
 ## 🧪 使用示例
 
-**示例 1：测试匹配**
+### 示例 1：宠物匹配
+
 ```
 用户：我想领只宠物
 
-AI: 好的！先做个投资性格测试吧~（10 道题）
+你：好的！先做个投资性格测试吧~（10 道题）
 
 [测试完成后]
 
@@ -212,12 +278,12 @@ AI: 好的！先做个投资性格测试吧~（10 道题）
 策略：极简定投，自动储蓄
 口头禅："慢慢来，比较快"
 
-📥 下一步：下载投资宠物技能
-- 技能名称：investment-buddy-pet
-- 启动时传入：--pet-type songguo
+📥 下一步：
+1. 安装技能：/clawhub install investment-buddy-pet
+2. 启动宠物：python scripts/heartbeat_engine.py start --pet-type songguo
 ```
 
-**示例 2：不同宠物的话术对比**
+### 示例 2：不同宠物的话术对比
 
 同一触发（市场跌 3%），不同宠物的反应：
 
@@ -243,21 +309,6 @@ AI: 好的！先做个投资性格测试吧~（10 道题）
 别人恐惧我贪婪！"
 ```
 
-**示例 3：启动宠物**
-```bash
-# 启动松果
-python scripts/heartbeat_engine.py start \
-  --user-id user_123 \
-  --pet-type songguo
-
-# 输出：
-🚀 心跳引擎启动（用户：user_123）
-🐾 宠物：松果 (🐿️)
-📊 主动性：40
-💬 沟通风格：温暖
-⏰ 检查间隔：300 秒
-```
-
 ---
 
 ## 🔧 故障排查
@@ -275,87 +326,46 @@ python scripts/heartbeat_engine.py start \
 
 ### 渐进式披露
 
-- `pets/*.json` - 12 只宠物人格定义
-- `scripts/pet_match.py` - 宠物匹配测试
-- `scripts/heartbeat_engine.py` - 心跳引擎
-- `scripts/sync_manager.py` - 信息同步
+- `references/pet-configs.md` - 12 只宠物完整人格配置
+- `pets/*.json` - 宠物人格定义文件（13 个）
+- `scripts/pet_match.py` - 宠物匹配测试脚本
+- `scripts/heartbeat_engine.py` - 心跳引擎脚本
 - `templates/daily_report.md` - 每日简报模板
 
 ### 相关技能
 
-- `investment-framework` - 投资框架技能包（大师技能）
-- `ttfund-skills` - 天天基金查询（底层数据）
-- `qieman-mcp` - 且慢投顾分析（组合案例）
+- `investment-framework` - 投资框架技能包
+- `ttfund-skills` - 天天基金查询
+- `qieman-mcp` - 且慢投顾分析
 
 ---
 
-## 📐 技术实现
+## 📋 投资性格测试题库（简化版）
 
-### 宠物配置加载
+**当用户要做测试时**，从以下题库选 10 题：
 
-```python
-def load_pet_config(pet_type):
-    """加载宠物配置"""
-    config_path = Path(__file__).parent / "pets" / f"{pet_type}.json"
-    
-    if not config_path.exists():
-        raise FileNotFoundError(f"宠物配置不存在：{pet_type}")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-```
+1. 市场跌了 20%，你的第一反应是？
+   - A. 赶紧卖出，止损
+   - B. 继续持有，不操作
+   - C. 加仓，这是机会
+   - D. 很焦虑，但不知道怎么办
 
-### 话术生成（应用人格）
+2. 你投资的主要目标是？
+   - A. 保值，跑赢通胀
+   - B. 稳健增值
+   - C. 追求高收益
+   - D. 学习投资知识
 
-```python
-class PetMessageGenerator:
-    def __init__(self, pet_config):
-        self.pet = pet_config
-    
-    def generate(self, trigger_type, data=None):
-        """生成宠物话术"""
-        # 获取基础模板
-        template = self.pet['talk_templates'][trigger_type]
-        
-        # 填充数据
-        if data:
-            message = template.format(**data)
-        
-        # 应用沟通风格
-        style = self.pet['communication_style']
-        if style == 'warm':
-            message = self.add_warm_tone(message)
-        elif style == 'calm':
-            message = self.shorten(message)
-        elif style == 'rational':
-            message = self.add_data(message)
-        elif style == 'decisive':
-            message = self.make_direct(message)
-        
-        return message
-```
+3. 你能接受的最大回撤是？
+   - A. 5% 以内
+   - B. 10-20%
+   - C. 30% 以上
+   - D. 不知道
 
----
-
-## 🎯 下一步行动
-
-### 本周（2026-04-10 ~ 2026-04-17）
-
-- [x] 创建通用 Skill 文件夹结构
-- [ ] 编写 12 只宠物 JSON 配置
-- [ ] 实现话术生成器（应用人格）
-- [ ] 实现心跳引擎（支持 pet_type）
-- [ ] 编写用户文档
-
-### 下周（2026-04-17 ~ 2026-04-24）
-
-- [ ] H5 测试页对接
-- [ ] 结果页引导下载
-- [ ] 发布到 ClawHub
-- [ ] 小范围内测（10 用户）
+[继续添加 10-20 题...]
 
 ---
 
 *创建时间：2026-04-10*  
-*版本：v1.0.0*  
-*状态：草案*
+*版本：v1.0.1*  
+*状态：演进中（Round 1 改进）*
