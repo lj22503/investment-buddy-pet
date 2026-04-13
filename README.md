@@ -176,12 +176,46 @@ investment-buddy-pet (主技能)
 
 ---
 
-## 📄 License
+## 📄 许可证
 
-MIT License
+本项目采用 [MIT 许可证](LICENSE)。
+
+**Copyright (c) 2026 燃冰 (燃冰 & ant)**
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+**简单来说：**
+- ✅ 你可以自由使用、修改、分发、商用
+- ✅ 需要保留原作者版权和许可证声明
+- ❌ 不提供任何担保，使用风险自负
+
+**合规声明：**
+- 本技能仅提供投资陪伴和情绪安抚
+- 不推荐具体基金/股票
+- 不承诺收益/保本
+- 宠物陪伴不替代专业投资建议
+
+详见 [LICENSE](LICENSE) 和 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
 **创建时间**：2026-04-10  
-**版本**：v1.0.0  
+**最后更新**：2026-04-14  
+**版本**：v1.0.4  
 **作者**：燃冰 + ant
