@@ -1,6 +1,6 @@
 ---
 name: investment-buddy-pet
-version: 1.0.3
+version: 1.0.4
 description: ［何时使用］当用户需要宠物陪伴式投资助手时；当用户说"帮我找个投资宠物"时；当检测到"投资性格测试""领宠物""持仓跟踪""定投提醒"等关键词时
 author: 燃冰 + ant
 created: 2026-04-10
