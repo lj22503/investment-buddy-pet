@@ -228,7 +228,7 @@ class FeedbackCollector:
 ## 总体数据
 
 - 总交互次数：{patterns.get('total_interactions', 0)}
-- 有帮助率：{patterns.get('helpful_rate', 'N/A'):.1%} if patterns.get('helpful_rate') else 'N/A'}
+- 有帮助率：{(str(round(patterns.get('helpful_rate') * 100, 1)) + "%") if patterns.get('helpful_rate') else 'N/A'}
 - 有帮助：{patterns.get('helpful_count', 0)}
 - 无帮助：{patterns.get('not_helpful_count', 0)}
 - 无反馈：{patterns.get('no_feedback_count', 0)}
