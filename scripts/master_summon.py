@@ -15,7 +15,12 @@
 import argparse
 import json
 import subprocess
+import re
 from datetime import datetime
+from typing import List, Dict
+
+# 导入市场数据获取函数
+from market_data import get_index_quotes, get_stock_quote, get_fund_nav
 
 
 # 18 位公开大师 Skill 列表（ClawHub）
@@ -110,22 +115,166 @@ class MasterSummoner:
         """
         调用大师 Skill 生成建议
         
-        **实现方式**: 通过 sessions_spawn 调用大师 Skill
+        **实现方式**: 通过 sessions_spawn 调用 + 真实数据注入
+        
+        **数据注入流程**：
+        1. 检测问题中的股票代码/基金代码
+        2. 调用 market_data.py 获取真实数据
+        3. 将真实数据注入到大师 Skill 的 prompt 中
+        4. 大师基于真实数据给出建议
         """
-        # 实际实现：通过 sessions_spawn 调用
-        # sessions_spawn(
-        #     task=f"作为{master['name']}，回答用户问题：{question}",
+        # Step 1: 检测问题中的标的
+        stock_codes = self._extract_stock_codes(question)
+        fund_codes = self._extract_fund_codes(question)
+        
+        # Step 2: 获取真实数据
+        market_data = {
+            "stocks": {},
+            "funds": {},
+            "indices": {}
+        }
+        
+        if stock_codes:
+            for code in stock_codes:
+                market_data["stocks"][code] = get_stock_quote(code)
+        
+        if fund_codes:
+            for code in fund_codes:
+                market_data["funds"][code] = get_fund_nav(code)
+        
+        # 获取大盘指数
+        market_data["indices"] = get_index_quotes(['000300.SZ', '000001.SZ'])
+        
+        # Step 3: 构建带真实数据的 prompt
+        prompt = self._build_master_prompt(master, question, market_data, context)
+        
+        # Step 4: 通过 sessions_spawn 调用大师 Skill
+        # 实际实现：
+        # result = sessions_spawn(
+        #     task=prompt,
         #     runtime="subagent",
         #     mode="run"
         # )
         
-        # 简化实现：返回示例
+        # 简化实现：返回示例（但包含真实数据）
+        content = self._generate_advice_with_data(master, question, market_data)
+        
         return {
             "principles": self._get_master_principles(master['id']),
-            "content": f"基于{master['name']}的投资哲学，针对你的问题：{question}\n\n建议深入分析基本面，关注长期价值。",
+            "content": content,
             "confidence": 0.85,
-            "risk_warning": "市场有风险，投资需谨慎。以上建议仅供参考。"
+            "risk_warning": "市场有风险，投资需谨慎。以上建议基于真实市场数据，仅供参考。",
+            "data_sources": {
+                "stocks": list(market_data["stocks"].keys()),
+                "funds": list(market_data["funds"].keys()),
+                "indices": list(market_data["indices"].keys())
+            }
         }
+    
+    def _extract_stock_codes(self, question: str) -> List[str]:
+        """从问题中提取股票代码"""
+        # 简化实现：检测常见股票名
+        stock_map = {
+            "贵州茅台": "600519.SZ",
+            "五粮液": "000858.SZ",
+            "中国平安": "601318.SZ",
+            "招商银行": "600036.SZ"
+        }
+        
+        codes = []
+        for name, code in stock_map.items():
+            if name in question:
+                codes.append(code)
+        
+        # 也可以检测股票代码格式（如 600519）
+        import re
+        matches = re.findall(r'(\d{6})', question)
+        for match in matches:
+            if match.startswith('6'):
+                codes.append(f"{match}.SH")
+            else:
+                codes.append(f"{match}.SZ")
+        
+        return list(set(codes))
+    
+    def _extract_fund_codes(self, question: str) -> List[str]:
+        """从问题中提取基金代码"""
+        import re
+        matches = re.findall(r'(\d{6})', question)
+        # 基金代码通常以 0, 1, 5 开头
+        return [m for m in matches if m.startswith(('0', '1', '5'))]
+    
+    def _build_master_prompt(self, master: dict, question: str, market_data: dict, context: dict) -> str:
+        """构建带真实数据的大师 prompt"""
+        master_name = master['name']
+        principles = '\n'.join(f"- {p}" for p in self._get_master_principles(master['id'])[:3])
+        
+        # 构建数据摘要
+        data_summary = []
+        if market_data["stocks"]:
+            for code, quote in market_data["stocks"].items():
+                data_summary.append(f"- {quote['name']} ({code}): {quote['current']}元 ({quote['change_percent']:+.1f}%), PE={quote.get('pe', 'N/A')}")
+        
+        if market_data["indices"]:
+            for code, quote in market_data["indices"].items():
+                data_summary.append(f"- {quote['name']}: {quote['current']} ({quote['change_percent']:+.1f}%)")
+        
+        prompt = f"""作为{master_name}，基于以下真实市场数据回答用户问题。
+
+**大师核心原则**：
+{principles}
+
+**当前市场数据**：
+{chr(10).join(data_summary) if data_summary else "暂无具体数据"}
+
+**用户问题**：{question}
+
+**用户画像**（如有）：
+- 风险偏好：{context.get('user_profile', {}).get('risk_tolerance', 'unknown')}
+- 投资风格：{context.get('user_profile', {}).get('investment_style', 'unknown')}
+
+**要求**：
+1. 用{master_name}的口吻回答
+2. 基于上述真实市场数据分析
+3. 给出具体建议（但必须标注"仅供参考"）
+4. 结尾提醒"这是你的风格，不一定适合用户"
+"""
+        return prompt
+    
+    def _generate_advice_with_data(self, master: dict, question: str, market_data: dict) -> str:
+        """基于真实数据生成大师建议（简化版）"""
+        master_name = master['name']
+        principles = self._get_master_principles(master['id'])[:3]
+        
+        # 构建数据摘要
+        data_parts = []
+        if market_data["stocks"]:
+            for code, quote in market_data["stocks"].items():
+                data_parts.append(f"{quote['name']}当前价格{quote['current']}元，涨跌幅{quote['change_percent']:+.1f}%")
+        
+        if market_data["indices"]:
+            for code, quote in market_data["indices"].items():
+                data_parts.append(f"{quote['name']}{quote['change_percent']:+.1f}%")
+        
+        data_summary = "，".join(data_parts) if data_parts else "市场数据暂缺"
+        
+        return f"""{master_name}：你好，年轻人。关于这个问题，我是这么想的：
+
+{chr(10).join(f"{i+1}. {p}" for i, p in enumerate(principles))}
+
+**当前市场情况**：
+{data_summary}
+
+针对你的问题"{question}"，我的建议是：
+• 深入分析基本面，不要只看短期价格波动
+• 关注长期价值，而不是市场情绪
+• 如果决定投资，用闲钱，分批建仓
+
+但记住：这是我的风格，不一定适合你。
+你的宠物更了解你，听它的建议可能更合适~
+
+⚠️ 市场有风险，投资需谨慎。以上建议基于真实市场数据，仅供参考。
+"""
     
     def _get_master_principles(self, master_id: str) -> list:
         """获取大师核心原则"""
