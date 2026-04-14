@@ -25,14 +25,13 @@
   "files": [
     "SKILL.md",
     "README.md",
+    "clawhub.json",
     "pets/*.json",
     "scripts/*.py",
     "docs/*.md",
     "docs/knowledge/*.md",
     "examples/*.md",
-    "references/*.md",
-    "data/*.json",
-    "data/feedback/*.jsonl"
+    "references/*.md"
   ],
   "scripts": {
     "test": "python3 scripts/compliance_checker.py",
