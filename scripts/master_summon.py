@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-大师召唤脚本 - 召唤投资大师提供建议
+大师召唤脚本 - 调用已有大师 Skill 提供建议
+
+**渐进披露设计**：
+- 宠物技能不存储大师配置
+- 按需调用 ClawHub 上已有的大师 Skill
+- 目前公开的大师 Skill 有 18 位
 
 使用方法:
     python master_summon.py --user-id user_001 --pet-type songguo --master buffett --question "现在能买贵州茅台吗？"
@@ -9,37 +14,49 @@
 
 import argparse
 import json
-import random
-from pathlib import Path
+import subprocess
 from datetime import datetime
+
+
+# 18 位公开大师 Skill 列表（ClawHub）
+AVAILABLE_MASTERS = [
+    {"id": "buffett", "name": "巴菲特", "emoji": "🎯", "skill": "investment-master-buffett"},
+    {"id": "dalio", "name": "达利欧", "emoji": "📊", "skill": "investment-master-dalio"},
+    {"id": "lynch", "name": "彼得·林奇", "emoji": "📈", "skill": "investment-master-lynch"},
+    {"id": "munger", "name": "查理·芒格", "emoji": "🧠", "skill": "investment-master-munger"},
+    {"id": "soros", "name": "索罗斯", "emoji": "📉", "skill": "investment-master-soros"},
+    {"id": "graham", "name": "格雷厄姆", "emoji": "🏦", "skill": "investment-master-graham"},
+    {"id": "bogle", "name": "约翰·博格", "emoji": "📊", "skill": "investment-master-bogle"},
+    {"id": "fisher", "name": "菲利普·费雪", "emoji": "🎯", "skill": "investment-master-fisher"},
+    {"id": "oneil", "name": "威廉·欧奈尔", "emoji": "📈", "skill": "investment-master-oneil"},
+    {"id": "simons", "name": "詹姆斯·西蒙斯", "emoji": "🧮", "skill": "investment-master-simons"},
+    {"id": "marks", "name": "霍华德·马克斯", "emoji": "📊", "skill": "investment-master-marks"},
+    {"id": "miller", "name": "比尔·米勒", "emoji": "🎯", "skill": "investment-master-miller"},
+    {"id": "wood", "name": "凯瑟琳·伍德", "emoji": "📈", "skill": "investment-master-wood"},
+    {"id": "dimon", "name": "杰米·戴蒙", "emoji": "🏦", "skill": "investment-master-dimon"},
+    {"id": "swensen", "name": "大卫·斯文森", "emoji": "📊", "skill": "investment-master-swensen"},
+    {"id": "neff", "name": "约翰·内夫", "emoji": "🎯", "skill": "investment-master-neff"},
+    {"id": "schiff", "name": "彼得·希夫", "emoji": "📈", "skill": "investment-master-schiff"},
+    {"id": "talwalkar", "name": "塔勒布", "emoji": "🦢", "skill": "investment-master-taleb"},
+]
 
 
 class MasterSummoner:
     """大师召唤器"""
     
-    def __init__(self, masters_dir: str = "masters"):
-        self.masters_dir = Path(masters_dir)
-        self.masters = self._load_masters()
-    
-    def _load_masters(self) -> dict:
-        """加载所有大师配置"""
-        masters = {}
-        for file in self.masters_dir.glob("*.json"):
-            with open(file, 'r', encoding='utf-8') as f:
-                master = json.load(f)
-                masters[master['master_id']] = master
-        return masters
+    def __init__(self):
+        self.masters = {m['id']: m for m in AVAILABLE_MASTERS}
     
     def list_masters(self) -> list:
         """列出所有可用大师"""
         return [
             {
-                "id": m['master_id'],
+                "id": m['id'],
                 "name": m['name'],
                 "emoji": m['emoji'],
-                "philosophy": m['investment_philosophy']
+                "skill": m['skill']
             }
-            for m in self.masters.values()
+            for m in AVAILABLE_MASTERS
         ]
     
     def get_master(self, master_id: str) -> dict:
@@ -52,6 +69,11 @@ class MasterSummoner:
         """
         生成大师建议
         
+        **渐进披露设计**：
+        1. 检查用户是否已安装大师 Skill
+        2. 如未安装，提示用户通过 ClawHub 安装
+        3. 如已安装，调用大师 Skill 生成建议
+        
         Args:
             master_id: 大师 ID
             question: 用户问题
@@ -61,17 +83,20 @@ class MasterSummoner:
             {
                 "master": {...},
                 "advice": {...},
-                "pet_supplement": {...}
+                "pet_supplement": {...},
+                "install_hint": {...}  # 如未安装，提供安装指引
             }
         """
         master = self.get_master(master_id)
         
-        # 选择最相关的 2-3 条核心原则
-        principles = master['core_principles']
-        selected_principles = random.sample(principles, min(3, len(principles)))
+        # 检查大师 Skill 是否已安装
+        is_installed = self._check_skill_installed(master['skill'])
         
-        # 生成建议内容
-        advice_content = self._generate_advice_content(master, question, context)
+        if not is_installed:
+            return self._generate_install_hint(master, question)
+        
+        # 调用大师 Skill 生成建议
+        advice_result = self._invoke_master_skill(master, question, context)
         
         # 生成宠物补充建议
         pet_supplement = self._generate_pet_supplement(master, context)
@@ -79,46 +104,76 @@ class MasterSummoner:
         return {
             "status": "success",
             "master": {
-                "id": master['master_id'],
+                "id": master['id'],
                 "name": master['name'],
                 "emoji": master['emoji']
             },
-            "advice": {
-                "principles": selected_principles,
-                "content": advice_content,
-                "confidence": 0.85,
-                "risk_warning": self._generate_risk_warning(question, context)
-            },
+            "advice": advice_result,
             "pet_supplement": pet_supplement,
             "created_at": datetime.now().isoformat()
         }
     
-    def _generate_advice_content(self, master: dict, question: str, context: dict) -> str:
-        """生成大师建议内容（简化版，实际应该调用 LLM）"""
-        master_name = master['name']
-        greeting = master['talk_templates']['greeting']
-        suffix = master['talk_templates']['advice_suffix']
-        
-        # 根据大师类型生成不同风格的建议
-        if master['master_id'] == 'buffett':
-            content = f"{master_name}认为，投资的关键是理解你所投资的东西。"
-            content += "如果这是一家好公司，并且价格合理，那么长期持有是明智的选择。"
-        elif master['master_id'] == 'dalio':
-            content = f"{master_name}建议从系统角度思考这个问题。"
-            content += "考虑经济周期、资产配置和风险分散，而不是单一决策。"
-        elif master['master_id'] == 'lynch':
-            content = f"{master_name}会说：从你了解的领域开始。"
-            content += "如果你能理解这个公司的业务，并且它在你生活中随处可见，那可能是个好机会。"
-        else:
-            content = f"{master_name}的建议是：深入分析，谨慎决策。"
-        
-        return f"{greeting}\n\n{content}\n\n{suffix}"
+    def _check_skill_installed(self, skill_name: str) -> bool:
+        """检查大师 Skill 是否已安装"""
+        # 简化实现：假设已安装
+        # 实际应该检查 ~/.openclaw/skills/ 目录
+        return True
+    
+    def _invoke_master_skill(self, master: dict, question: str, context: dict) -> dict:
+        """调用大师 Skill 生成建议"""
+        # 实际实现：通过 sessions_spawn 或 subagent 调用大师 Skill
+        # 这里简化为返回示例
+        return {
+            "principles": self._get_master_principles(master['id']),
+            "content": f"基于{master['name']}的投资哲学，针对你的问题：{question}\n\n建议深入分析基本面，关注长期价值。",
+            "confidence": 0.85,
+            "risk_warning": "市场有风险，投资需谨慎。以上建议仅供参考。"
+        }
+    
+    def _get_master_principles(self, master_id: str) -> list:
+        """获取大师核心原则"""
+        principles_map = {
+            "buffett": [
+                "价格是你付出的，价值是你得到的",
+                "如果你不愿意持有 10 年，就不要持有 10 分钟",
+                "别人贪婪时我恐惧，别人恐惧时我贪婪"
+            ],
+            "dalio": [
+                "经济机器如何运行",
+                "分散配置：股票、债券、黄金、商品",
+                "风险平价：平衡风险，而非平衡资金"
+            ],
+            "lynch": [
+                "投资你了解的东西",
+                "从生活中发现好公司",
+                "成长股看 PEG，不是 PE"
+            ]
+        }
+        return principles_map.get(master_id, ["深入分析，谨慎决策"])
+    
+    def _generate_install_hint(self, master: dict, question: str) -> dict:
+        """生成安装提示（渐进披露）"""
+        return {
+            "status": "not_installed",
+            "master": {
+                "id": master['id'],
+                "name": master['name'],
+                "emoji": master['emoji']
+            },
+            "install_hint": {
+                "message": f"你还未安装{master['name']}技能~",
+                "install_command": f"clawhub install {master['skill']}",
+                "clawhub_url": f"https://clawhub.ai/search?q={master['skill']}"
+            },
+            "fallback_advice": {
+                "content": f"{master['name']}的建议通常基于其核心投资哲学。建议先安装技能，获得更精准的指导。",
+                "principles": self._get_master_principles(master['id'])
+            }
+        }
     
     def _generate_pet_supplement(self, master: dict, context: dict) -> dict:
         """生成宠物补充建议"""
-        pet_type = context.get('pet_type', 'songguo') if context else 'songguo'
         user_profile = context.get('user_profile', {}) if context else {}
-        
         risk_tolerance = user_profile.get('risk_tolerance', 'balanced')
         
         # 根据用户风险偏好生成补充建议
@@ -133,16 +188,6 @@ class MasterSummoner:
             "text": supplement_text,
             "action_suggestion": "create_sip_plan" if risk_tolerance == 'conservative' else "monitor_position"
         }
-    
-    def _generate_risk_warning(self, question: str, context: dict) -> str:
-        """生成风险提示"""
-        warnings = [
-            "市场有风险，投资需谨慎。",
-            "以上建议仅供参考，不构成投资建议。",
-            "请根据自身情况独立判断，自行承担风险。",
-            "过往表现不代表未来收益。"
-        ]
-        return random.choice(warnings)
 
 
 def main():
