@@ -1,7 +1,7 @@
 {
   "name": "investment-buddy-pet",
-  "version": "1.0.4",
-  "description": "投资宠物技能 - 12 只宠物陪伴你投资成长，提供情感陪伴、定投提醒、投资者教育（skill-evolve Round 1-2 改进版）",
+  "version": "1.1.0",
+  "description": "投资宠物技能 - 12 只宠物陪伴你投资成长，提供情感陪伴、定投提醒、投资者教育（v1.1.0 新增自我进化能力）",
   "author": "燃冰 + ant",
   "license": "MIT",
   "keywords": [
@@ -27,7 +27,12 @@
     "README.md",
     "pets/*.json",
     "scripts/*.py",
-    "docs/knowledge/*.md"
+    "docs/*.md",
+    "docs/knowledge/*.md",
+    "examples/*.md",
+    "references/*.md",
+    "data/*.json",
+    "data/feedback/*.jsonl"
   ],
   "scripts": {
     "test": "python3 scripts/compliance_checker.py",
