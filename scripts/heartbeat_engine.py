@@ -24,9 +24,9 @@ class HeartbeatEngine:
         self.user_id = user_id
         self.db_path = db_path or Path(__file__).parent.parent / "data" / "pet_data.db"
         self.config = self.load_config()
-        self.pet = self.load_pet(pet_type)
+        self.init_db()  # 先初始化数据库
         self.compliance = ComplianceChecker()  # 初始化合规检查器
-        self.init_db()
+        self.pet = self.load_pet(pet_type)  # 再加载宠物（支持传入 pet_type）
     
     def load_config(self):
         """加载配置"""
@@ -37,10 +37,21 @@ class HeartbeatEngine:
             "quiet_hours": {"start": 22, "end": 8}  # 安静时间（22:00-8:00）
         }
     
-    def load_pet(self):
-        """加载宠物信息"""
+    def load_pet(self, pet_type=None):
+        """加载宠物信息
+        
+        Args:
+            pet_type: 宠物类型（如 'songguo'）。如未提供，则从数据库读取
+        """
+        # 优先使用传入的 pet_type
+        if pet_type:
+            pet_path = Path(__file__).parent.parent / "pets" / f"{pet_type}.json"
+            if pet_path.exists():
+                with open(pet_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        
         # 从数据库读取用户宠物
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
         
         cursor.execute(
@@ -64,8 +75,30 @@ class HeartbeatEngine:
     
     def init_db(self):
         """初始化数据库"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
+        
+        # 创建用户表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                pet_type TEXT,
+                sip_day INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 创建宠物表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                pet_type TEXT,
+                activated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                level INTEGER DEFAULT 1,
+                xp INTEGER DEFAULT 0
+            )
+        """)
         
         # 创建提醒记录表
         cursor.execute("""
@@ -77,6 +110,16 @@ class HeartbeatEngine:
                 priority TEXT,
                 sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 acknowledged BOOLEAN DEFAULT FALSE
+            )
+        """)
+        
+        # 创建互动记录表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS interactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
+                action TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         
@@ -110,7 +153,7 @@ class HeartbeatEngine:
     
     def check_user_status(self):
         """检查用户状态"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
         
         # 检查定投日
@@ -321,7 +364,7 @@ class HeartbeatEngine:
             return False
         
         # 保存到数据库
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
         
         cursor.execute(
@@ -382,11 +425,12 @@ def main():
     
     parser = argparse.ArgumentParser(description="心跳引擎 - 主动提醒系统")
     parser.add_argument("--user-id", required=True, help="用户 ID")
+    parser.add_argument("--pet-type", type=str, default=None, help="宠物类型（如 songguo, wugui）")
     parser.add_argument("--once", action="store_true", help="只执行一次（测试用）")
     
     args = parser.parse_args()
     
-    engine = HeartbeatEngine(user_id=args.user_id)
+    engine = HeartbeatEngine(user_id=args.user_id, pet_type=args.pet_type)
     
     if args.once:
         # 只执行一次

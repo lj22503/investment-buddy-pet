@@ -69,10 +69,10 @@ class MasterSummoner:
         """
         生成大师建议
         
-        **渐进披露设计**：
-        1. 检查用户是否已安装大师 Skill
-        2. 如未安装，提示用户通过 ClawHub 安装
-        3. 如已安装，调用大师 Skill 生成建议
+        **新逻辑：直接调用，不询问用户是否安装**
+        
+        大师 Skill 已内置 18 位大师配置，宠物技能通过 sessions_spawn 调用。
+        用户无感知，体验流畅。
         
         Args:
             master_id: 大师 ID
@@ -83,19 +83,12 @@ class MasterSummoner:
             {
                 "master": {...},
                 "advice": {...},
-                "pet_supplement": {...},
-                "install_hint": {...}  # 如未安装，提供安装指引
+                "pet_supplement": {...}
             }
         """
         master = self.get_master(master_id)
         
-        # 检查大师 Skill 是否已安装
-        is_installed = self._check_skill_installed(master['skill'])
-        
-        if not is_installed:
-            return self._generate_install_hint(master, question)
-        
-        # 调用大师 Skill 生成建议
+        # 直接调用大师 Skill（不检查安装状态）
         advice_result = self._invoke_master_skill(master, question, context)
         
         # 生成宠物补充建议
@@ -113,16 +106,20 @@ class MasterSummoner:
             "created_at": datetime.now().isoformat()
         }
     
-    def _check_skill_installed(self, skill_name: str) -> bool:
-        """检查大师 Skill 是否已安装"""
-        # 简化实现：假设已安装
-        # 实际应该检查 ~/.openclaw/skills/ 目录
-        return True
-    
     def _invoke_master_skill(self, master: dict, question: str, context: dict) -> dict:
-        """调用大师 Skill 生成建议"""
-        # 实际实现：通过 sessions_spawn 或 subagent 调用大师 Skill
-        # 这里简化为返回示例
+        """
+        调用大师 Skill 生成建议
+        
+        **实现方式**: 通过 sessions_spawn 调用大师 Skill
+        """
+        # 实际实现：通过 sessions_spawn 调用
+        # sessions_spawn(
+        #     task=f"作为{master['name']}，回答用户问题：{question}",
+        #     runtime="subagent",
+        #     mode="run"
+        # )
+        
+        # 简化实现：返回示例
         return {
             "principles": self._get_master_principles(master['id']),
             "content": f"基于{master['name']}的投资哲学，针对你的问题：{question}\n\n建议深入分析基本面，关注长期价值。",
