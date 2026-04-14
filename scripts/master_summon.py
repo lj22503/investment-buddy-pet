@@ -142,7 +142,19 @@ class MasterSummoner:
         if stock_codes:
             for code in stock_codes:
                 try:
-                    market_data["stocks"][code] = _api.get_quote(code)
+                    quote = _api.get_quote(code)
+                    # P0 修复：验证数据准确性
+                    if self._validate_quote(quote):
+                        market_data["stocks"][code] = quote
+                    else:
+                        # 数据异常，刷新缓存后重试
+                        print(f"⚠️ {code} 数据异常，刷新缓存...")
+                        _api.clear_cache()
+                        quote = _api.get_quote(code)
+                        if self._validate_quote(quote):
+                            market_data["stocks"][code] = quote
+                        else:
+                            print(f"❌ {code} 数据仍然异常，使用空数据")
                 except Exception as e:
                     print(f"获取 {code} 行情失败：{e}")
         
@@ -220,20 +232,53 @@ class MasterSummoner:
         # 基金代码通常以 0, 1, 5 开头
         return [m for m in matches if m.startswith(('0', '1', '5'))]
     
+    def _validate_quote(self, quote) -> bool:
+        """
+        P0 修复：验证行情数据是否合理
+        
+        A 股涨跌幅限制：
+        - 主板：±10%
+        - 科创板/创业板：±20%
+        - 北交所：±30%
+        
+        留一些缓冲，超过±25% 认为异常
+        """
+        try:
+            change_pct = getattr(quote, 'change_pct', getattr(quote, 'change_percent', 0))
+            price = getattr(quote, 'price', getattr(quote, 'current', 0))
+            
+            # 检查涨跌幅
+            if abs(change_pct) > 25:
+                return False
+            
+            # 检查价格
+            if price <= 0 or price > 100000:
+                return False
+            
+            return True
+        except Exception:
+            return False
+    
     def _build_master_prompt(self, master: dict, question: str, market_data: dict, context: dict) -> str:
         """构建带真实数据的大师 prompt"""
         master_name = master['name']
         principles = '\n'.join(f"- {p}" for p in self._get_master_principles(master['id'])[:3])
         
-        # 构建数据摘要
+        # 构建数据摘要（适配 data_layer 的 Quote 对象）
         data_summary = []
         if market_data["stocks"]:
             for code, quote in market_data["stocks"].items():
-                data_summary.append(f"- {quote['name']} ({code}): {quote['current']}元 ({quote['change_percent']:+.1f}%), PE={quote.get('pe', 'N/A')}")
+                # Quote 对象属性：name, price, change_pct
+                name = getattr(quote, 'name', getattr(quote, 'code', code))
+                price = getattr(quote, 'price', getattr(quote, 'current', 0))
+                change_pct = getattr(quote, 'change_pct', getattr(quote, 'change_percent', 0))
+                data_summary.append(f"- {name} ({code}): {price}元 ({change_pct:+.1f}%)")
         
         if market_data["indices"]:
-            for code, quote in market_data["indices"].items():
-                data_summary.append(f"- {quote['name']}: {quote['current']} ({quote['change_percent']:+.1f}%)")
+            for name, data in market_data["indices"].items():
+                price = data.get('price', 0)
+                change_pct = data.get('change_pct', 0)
+                data_summary.append(f"- {name}: {price} ({change_pct:+.1f}%)")
         
         prompt = f"""作为{master_name}，基于以下真实市场数据回答用户问题。
 

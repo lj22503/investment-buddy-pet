@@ -1,6 +1,6 @@
 ---
 name: investment-buddy-pet
-version: 1.0.4
+version: 1.1.0
 description: ［何时使用］当用户需要宠物陪伴式投资助手时；当用户说"帮我找个投资宠物"时；当检测到"投资性格测试""领宠物""持仓跟踪""定投提醒"等关键词时
 author: 燃冰 + ant
 created: 2026-04-10
@@ -8,6 +8,7 @@ skill_type: 通用🟡
 allowed-tools: [Bash, Read, Write, Exec, Message]
 related_skills: [investment-framework, ttfund-skills, qieman-mcp]
 tags: [投资，宠物，陪伴，定投，提醒]
+self_improvement: true  # 支持自我进化
 ---
 
 # 投资宠物技能 🐾
