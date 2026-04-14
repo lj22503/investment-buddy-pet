@@ -16,11 +16,16 @@ import argparse
 import json
 import subprocess
 import re
+import sys
 from datetime import datetime
 from typing import List, Dict
 
-# 导入市场数据获取函数
-from market_data import get_index_quotes, get_stock_quote, get_fund_nav
+# 导入现有 data_layer（统一数据获取层）
+sys.path.insert(0, '/home/admin/.openclaw/workspace')
+from data_layer import DataAPI, get_api
+
+# 获取全局 API 实例
+_api = get_api()
 
 
 # 18 位公开大师 Skill 列表（ClawHub）
@@ -119,7 +124,7 @@ class MasterSummoner:
         
         **数据注入流程**：
         1. 检测问题中的股票代码/基金代码
-        2. 调用 market_data.py 获取真实数据
+        2. 调用 data_layer 获取真实数据（统一数据获取层）
         3. 将真实数据注入到大师 Skill 的 prompt 中
         4. 大师基于真实数据给出建议
         """
@@ -127,7 +132,7 @@ class MasterSummoner:
         stock_codes = self._extract_stock_codes(question)
         fund_codes = self._extract_fund_codes(question)
         
-        # Step 2: 获取真实数据
+        # Step 2: 获取真实数据（使用现有 data_layer）
         market_data = {
             "stocks": {},
             "funds": {},
@@ -136,14 +141,25 @@ class MasterSummoner:
         
         if stock_codes:
             for code in stock_codes:
-                market_data["stocks"][code] = get_stock_quote(code)
+                try:
+                    market_data["stocks"][code] = _api.get_quote(code)
+                except Exception as e:
+                    print(f"获取 {code} 行情失败：{e}")
         
         if fund_codes:
+            from data_layer import FundAPI
+            fund_api = FundAPI()
             for code in fund_codes:
-                market_data["funds"][code] = get_fund_nav(code)
+                try:
+                    market_data["funds"][code] = fund_api.get_detail(code)
+                except Exception as e:
+                    print(f"获取基金 {code} 数据失败：{e}")
         
         # 获取大盘指数
-        market_data["indices"] = get_index_quotes(['000300.SZ', '000001.SZ'])
+        try:
+            market_data["indices"] = _api.get_indices()
+        except Exception as e:
+            print(f"获取大盘指数失败：{e}")
         
         # Step 3: 构建带真实数据的 prompt
         prompt = self._build_master_prompt(master, question, market_data, context)
@@ -246,15 +262,21 @@ class MasterSummoner:
         master_name = master['name']
         principles = self._get_master_principles(master['id'])[:3]
         
-        # 构建数据摘要
+        # 构建数据摘要（适配 data_layer 的 Quote 对象）
         data_parts = []
         if market_data["stocks"]:
             for code, quote in market_data["stocks"].items():
-                data_parts.append(f"{quote['name']}当前价格{quote['current']}元，涨跌幅{quote['change_percent']:+.1f}%")
+                # Quote 对象有 price, change_pct 属性
+                price = getattr(quote, 'price', getattr(quote, 'current', 0))
+                change_pct = getattr(quote, 'change_pct', getattr(quote, 'change_percent', 0))
+                name = getattr(quote, 'name', code)
+                data_parts.append(f"{name}当前价格{price}元，涨跌幅{change_pct:+.1f}%")
         
         if market_data["indices"]:
-            for code, quote in market_data["indices"].items():
-                data_parts.append(f"{quote['name']}{quote['change_percent']:+.1f}%")
+            for name, data in market_data["indices"].items():
+                price = data.get('price', 0)
+                change_pct = data.get('change_pct', 0)
+                data_parts.append(f"{name}{price} ({change_pct:+.1f}%)")
         
         data_summary = "，".join(data_parts) if data_parts else "市场数据暂缺"
         
@@ -273,7 +295,7 @@ class MasterSummoner:
 但记住：这是我的风格，不一定适合你。
 你的宠物更了解你，听它的建议可能更合适~
 
-⚠️ 市场有风险，投资需谨慎。以上建议基于真实市场数据，仅供参考。
+⚠️ 市场有风险，投资需谨慎。以上建议基于真实市场数据（data_layer），仅供参考。
 """
     
     def _get_master_principles(self, master_id: str) -> list:
