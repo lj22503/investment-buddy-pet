@@ -1,14 +1,14 @@
 ---
 name: investment-buddy-pet
-version: 1.1.0
+version: 1.2.0
 description: ［何时使用］当用户需要宠物陪伴式投资助手时；当用户说"帮我找个投资宠物"时；当检测到"投资性格测试""领宠物""持仓跟踪""定投提醒"等关键词时
 author: 燃冰 + ant
 created: 2026-04-10
 skill_type: 通用🟡
 allowed-tools: [Bash, Read, Write, Exec, Message]
 related_skills: [investment-framework, ttfund-skills, qieman-mcp]
-tags: [投资，宠物，陪伴，定投，提醒]
-self_improvement: true  # 支持自我进化
+tags: [投资，宠物，陪伴，定投，提醒，自我进化，知识库]
+self_improvement: true  # 支持自我进化（v1.2.0: Karpathy LLM Wiki）
 ---
 
 # 投资宠物技能 🐾
@@ -17,9 +17,9 @@ self_improvement: true  # 支持自我进化
 
 ---
 
-## 🏗️ 三层架构（任何 Agent 必读）
+## 🏗️ 四层架构（任何 Agent 必读）
 
-这个 skill 分为三层，**不同能力的 Agent 负责不同层级**：
+这个 skill 分为四层，**不同能力的 Agent 负责不同层级**：
 
 ```
 ┌──────────────────────────────────────┐
@@ -46,7 +46,22 @@ self_improvement: true  # 支持自我进化
 │ - templates/*.md                      │
 │ - 用户状态存储                        │
 └──────────────────────────────────────┘
+              ↓ 如需进化
+┌──────────────────────────────────────┐
+│ Layer 4: 知识层 (NEW v1.1.2)          │
+│ 基于 Karpathy LLM Wiki               │
+│ - raw/ 原始素材（只读）              │
+│ - wiki/ 结构化知识（可生长）          │
+│ - 自我进化能力                        │
+└──────────────────────────────────────┘
 ```
+
+**Layer 4 核心能力**：
+- 🧠 **Ingest** - 从对话中提取知识，自动创建 wiki 页面
+- 🔍 **Query** - 查询知识库，生成有依据的回答
+- 🧹 **Lint** - 定期检查知识健康，修复断链/矛盾
+
+**详见**: `CLAUDE.md` (知识库维护规则)
 
 ---
 
